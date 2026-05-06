@@ -1,0 +1,38 @@
+# docker/Dockerfile
+FROM php:8.2-fpm
+
+# システム依存関係インストール
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    libzip-dev \
+    zip \
+    unzip \
+    default-mysql-client \
+    cron \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Composerインストール
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# 作業ディレクトリ設定
+WORKDIR /var/www
+
+# アプリケーションファイルコピー
+COPY . .
+
+# 依存関係インストール
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader
+
+# パーミッション設定
+RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+RUN chmod -R 775 /var/www/storage /var/www/bootstrap/cache
+
+CMD ["php-fpm"]
